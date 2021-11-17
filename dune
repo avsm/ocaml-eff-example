@@ -11,6 +11,10 @@
  (modules state))
 
 (executables
+ (names state2)
+ (modules state2))
+
+(executables
  (names ref)
  (modules ref))
 

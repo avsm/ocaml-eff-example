@@ -1,4 +1,6 @@
 open Printf
+open EffectHandlers
+open EffectHandlers.Deep
 
 module type STATE = sig
   type t
@@ -11,18 +13,23 @@ module State (S : sig type t end) : STATE with type t = S.t = struct
 
   type t = S.t
 
-  effect Put : t -> unit
+  type _ eff += Put : t -> unit eff
   let put v = perform (Put v)
 
-  effect Get : t
+  type _ eff += Get : t eff
   let get () = perform Get
 
   let run f ~init =
     let comp =
-      match f () with
-      | x -> (fun s -> (s, x))
-      | effect (Put s') k -> (fun _s -> continue k () s')
-      | effect Get k -> (fun s -> continue k s s)
+      match_with f ()
+      { retc = (fun x -> (fun s -> (s, x)));
+        exnc = (fun e -> raise e);
+        effc = fun (type a) (e : 'a eff) ->
+                 match e with
+                 | Put s' -> Some (fun k -> (fun _s -> continue k () s'))
+                 | Get -> Some (fun k -> (fun s -> continue k s s))
+                 | e -> None
+       }
     in comp init
 end
 
